@@ -1,0 +1,1028 @@
+---
+title: "Exploring the World of Books: An Analysis of User Trends and Ratings "
+author: "GROUP 8 - Hritik Mahajan, Kirthana Shri, Navya Pragathi, Shubhada Avahad "
+date: "02/12/2023"
+output:
+  pdf_document: default
+  html_document: default
+---
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(comment = FALSE)
+
+
+```
+
+
+
+```{r Libraries, include=FALSE}
+
+library(tidyverse) # helps to transform and better present data
+library(tidyr) # helps to perform data tidying operations(pivoting,nesting,unnesting)
+library(dplyr) # helps to perform exploratory analysis and data manipulations
+library(stringr) # helps to perform string manipulations on string type variables
+library(lubridate) # helps to perform operations on date and time
+library(magrittr)         
+library(ggplot2)
+library(gridExtra)
+library(extrafont)
+library(scales)
+library(plotly)
+library(reshape2)
+library(ggalluvial)
+library(corrplot)
+library(treemapify) 
+library(treemap)
+library(tinytex)
+
+```
+
+
+```{r Data, include = FALSE}
+df_books <- read.csv('/Users/kirthanashri/Downloads/books_data/books.csv',sep = ";", na.strings = "",encoding='latin-1')
+
+df_ratings <- read.csv('/Users/kirthanashri/Downloads/books_data/ratings.csv',sep = ";", na.strings = "",encoding='UTF-8')
+
+df_users <- read.csv('/Users/kirthanashri/Downloads/books_data/users.csv',sep = ";", na.strings = "", fileEncoding="latin1")
+
+### DATASET
+##### df_books contains books data which is retrieved from books.csv
+##### df_ratings contains ratings data which is retrieved from ratings.csv
+##### df_users contains users data which is retrieved from users.csv
+```
+
+
+
+  
+
+```{r Task 1,  echo=FALSE} 
+
+#Segregating dataframe acc to needs 
+df_books <- df_books %>% dplyr::select(-Image.URL.L, -Image.URL.M, -Image.URL.S) 
+
+#df_books %>% head(5)
+
+#df_ratings  %>% head(5)
+
+#df_users %>% head(5)
+
+suppressPackageStartupMessages(library(MASS))
+suppressWarnings(library(MASS))
+suppressWarnings(library(ggplot2))
+```
+
+
+
+```{r books,  echo=FALSE} 
+
+#Data type understanding and converting them to type on which manipulation operations can be done
+#summary(df_books)
+
+df_books1 <- df_books
+
+df_books1$ISBN <- as.numeric(as.character(df_books1$ISBN))
+df_books1$Year.Of.Publication <- as.numeric(as.character(df_books1$Year.Of.Publication))
+#df_books1$Year.Of.Publication <- as.Date(as.character(df_books1$Year.Of.Publication),"%Y")
+
+df_books1 <- df_books1[df_books1$Year.Of.Publication!=0,]
+
+#nrow(df_books2[df_books2$Year.Of.Publication==0,])
+
+#nrow(df_books1)
+df_books2 <- df_books1 %>% drop_na()
+#nrow(df_books2)
+
+#summary(df_books2)
+
+```
+```{r Users,  echo=FALSE}
+
+
+#summary(df_users)
+
+df_users1 <- df_users 
+#nrow(df_users1)
+#nrow(df_users1 %>% drop_na())
+
+split_values <- strsplit(df_users1$Location, ",")
+df_split <- data.frame(city = sapply(split_values, "[", 1), 
+                       state = sapply(split_values, "[", 2),
+                       country = sapply(split_values, "[", 3))
+df_users2 <- cbind(df_users1, df_split)
+
+df_users2$User.ID <- as.numeric(as.character(df_users2$User.ID))
+df_users2$Age <- as.numeric(as.character(df_users2$Age))
+
+#summary(df_users2)
+
+#nrow(df_users2 %>% drop_na()) 
+
+```
+```{r ratings, echo=FALSE}
+
+#summary(df_ratings)
+
+
+df_ratings1 <- df_ratings
+
+#Encoding(df_ratings1$ISBN)
+
+#df_ratings1$ISBN <- as.numeric(as.character(df_ratings1$ISBN))
+df_ratings1$ISBN <- sapply(df_ratings1$ISBN, function(x) gsub("[a-zA-Z]", "", x))
+df_ratings1$ISBN <- as.numeric(as.character(df_ratings1$ISBN))
+
+#nrow(df_ratings1)
+#nrow(df_ratings1 %>% drop_na())
+
+df_ratings1 <- df_ratings1 %>% drop_na()
+#summary(df_ratings1)
+
+```
+
+
+
+```{r supple, echo=FALSE}
+
+#sup <- read.csv('/Users/kirthanashri/Downloads/Books_rating.csv')
+
+#sup1 <- sup
+#summary(sup)
+#sup$ISBN10
+#sup1$Id <- sapply(sup1$Id, function(x) gsub("[a-zA-Z]", "", x))
+#sup1$ISBN <- as.numeric(as.character(sup1$Id))
+
+#sup1 <- sup1[(sup1$ISBN >= 1980000),]
+#sup$ISBN
+#sup$Book.Title <- sup$Name
+#summary(sup)
+#summary(sup1)
+#summary(df2)
+
+#sup2 <- sup1 %>% dplyr::select(ISBN,Title,Price) %>% head(20)
+
+#unique(df2$Book.Title)
+#unique(sup$Name)
+#df3 <- merge(df2, sup2, by='ISBN') %>% drop_na()
+
+#unique(df3)
+#df3 %>% head(10)
+#unique(sup$currency)
+```
+
+
+
+```{r jointables , echo=FALSE}
+
+df1 <- merge(df_ratings1, df_users2, by='User.ID') %>% drop_na()
+df2 <- merge(df1, df_books2, by='ISBN') %>% drop_na()
+
+
+df2 <- df2[(df2$Age>5) & (df2$Age<90),]
+df2 <- df2[df2$Year.Of.Publication<=2004,]
+#summary(df2)
+```
+
+###                                          Contents
+###   1 Introduction & Problem Statement. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 1
+###   2 About the dataset . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 2
+###   3.1 Section 1: Books Analysis . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 2
+###   3.2 Section 2: User profile Analysis based on age and location . . . . . . . . . . . . . . . . . .  2
+###   3.3 Section 3: User reading habits based on ratings Analysis  . . . . . . . . . . . . . . . . . . . 7
+###   4 Conclusion . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .10
+###   5 References . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .10
+
+
+###                                          Introduction & Problem Statement
+
+The book industry has undergone a major transformation in recent years, due to advancements in technology and changes in consumer behavior. The widespread availability of e-books, audiobooks, and the ease of online purchasing has revolutionized the way people read and access literature. Despite the rise of e-books and audiobooks, physical books have maintained a strong following, with many readers preferring the traditional feel and experience of holding a physical book in their hands. As a result, the demand for books has skyrocketed, leading to a significant increase in sales and popularity.
+We are working with the books read by users and ratings provided by them on Amazon to understand these changes and the evolving reading habits of consumers. We have designed a case study to analyze three key datasets: Books, Users, and Ratings. This report is divided into three sections exploring these three datasets. These datasets include locations, age, name of the books, publisher name, ratings provided by the users and the ISBN. The three sections we explored are
+[1] Books Analysis 
+[2] User profile analysis based on age and location
+[3] User reading habits based on ratings Analysis
+
+###                                                 About the dataset
+The Books dataset provides information about the books that are being purchased, including their publication, author, and publication year. This information can help publishers and retailers to better understand the types of books that are popular and in demand.
+The Users dataset gives an insight into the demographics of book consumers, including age. This information can help publishers and retailers to tailor their marketing and product offerings to better meet the needs of their target audience. The user location also provides information about the locations where books are being purchased and consumed. This information can be used to identify areas with high demand for books, allowing publishers and retailers to better understand where to focus their efforts. It can also help to identify geographic trends and patterns, such as regional preferences for certain publishers or authors.
+The Ratings dataset can also be used to identify trends and patterns in user preferences. For example, it may be possible to identify specific authors that are particularly popular among certain demographics, such as young adults or older readers.
+
+##   Section 1: Books Analysis
+### Q. What is the distribution of the publication years?
+The information presented in the graph can be used to make inferences about the state of the publishing industry at the time.We can see an upward trend in the number of books published starting from the year 1970.This increase could be due to a variety of factors, such as advancements in technology that made it easier to publish and distribute books, an increase in the number of authors, or a growing demand for books from the general public. It's also possible that the increasing trend from the year 1970 could have been influenced by broader cultural, economic, and political factors or government policies. This could have had a positive impact on the publishing industry, potentially leading to more investment, innovation, and growth.
+```{r   plot1, echo=FALSE}
+# ggplot(df2, aes(Year.Of.Publication)) +
+#   geom_histogram(fill = "pink", binwidth = 5, color='black') +
+#   labs(x = "Year of Publication", y = "Frequency", title = "Distribution of Year of Publication")
+
+#class(year(as.Date(as.character(df2$Year.Of.Publication),"%Y")))
+#unique(typeof(df2$Year.Of.Publication))
+options(repr.plot.width=2, repr.plot.height=4)
+df2$Year.Of.Publication <- year(as.Date(as.character(df2$Year.Of.Publication),"%Y"))
+df3 <- df2[(df2$Year.Of.Publication > 1950) & (df2$Year.Of.Publication <= 2004),]
+ggplot(df3, aes(Year.Of.Publication)) +
+  geom_histogram(fill = "#9B6D9B", color = "grey30", binwidth=5)  +
+  geom_vline(xintercept = mean(df2$Year.Of.Publication), color = '#006699', linetype = "dashed", size=0.8) +
+  scale_x_continuous(limits=c(1900, 2004), 
+                     breaks=seq(1900, 2004, by=10),
+                     labels=seq(1900, 2004, by=10)) +
+  labs(x = "Year of Publication", y = "Number of Users", title = "Distribution of Year of Publication", plot.title.position = "center") +
+    theme(plot.margin = unit(c(.5,.5,.5,.5), "cm"), panel.border = element_rect(color = "black", size = 0.5, fill = NA),
+        plot.title = element_text(size=10, face="bold",hjust = 0.5)) 
+
+# plot_dimensions <- par("pin")
+# 
+# # Print the height and width
+# print(paste("The current plot height is", plot_dimensions[1], "and the width is", plot_dimensions[2]))
+```
+
+### Q. What are the most popular books in the dataset?
+Top 10 books : We can see that the book "Wild Animus" appeals to readers looking for something unique and experimental, while "The Lovely Bones: A Novel" is popular due to its emotional themes and powerful writing. On the other hand, "The Da Vinci Code" has captured the attention of readers with its intriguing storyline and exciting plot twists. These books demonstrate that different elements of a book, such as storyline, themes, and narrative style, can all play a significant role in determining its popularity. Moreover, the diverse tastes of readers are highlighted by the popularity of these three books, as they cover a range of genres and styles. This finding highlights the need for publishers and authors to cater to a variety of reader preferences, as there is no one-size-fits-all formula for what makes a book popular.
+```{r }
+df3 <- df2 %>% dplyr::select(User.ID, Book.Title) %>% unique()
+df3 <- df3 %>% group_by(Book.Title) %>% summarise(count=n(), .groups = 'drop') %>% arrange(desc(count)) %>% head(10)
+
+df3$Book.Title <- factor(df3$Book.Title, levels = unique(df3$Book.Title)[order(df3$count, decreasing = FALSE)])
+
+ggplot(data = df3, aes(x = Book.Title, y = count)) +
+  geom_bar(stat = "identity", fill = "#9B6D9B", width=0.5) +
+   geom_text(aes(label = count, y= count+13), size = 2.5) +
+  xlab("Book Titles") +
+  ylab("Number of Users") +
+  ggtitle("Top 10 popular books in the dataset") + coord_flip()+
+  theme(plot.margin = unit(c(.5,.5,.5,.5), "cm"), panel.border = element_rect(color = "black", size = 1, fill = NA),
+        plot.title = element_text(size=10, face="bold",hjust = 0.5)) +
+     theme(axis.text.x = element_text(size = 8),axis.text.y = element_text(size = 8) , 
+          axis.title.x = element_text(family="sans", size=9) ,
+          axis.title.y = element_text(family="sans", size=9) ,
+        legend.title =  element_text(family="sans",face="bold",size=8),
+        legend.text =  element_text(family="sans",size=8),
+        plot.title = element_text(size=10, face="bold"))
+
+```
+```{r, fig.width=6, fig.height=3 }
+library(alluvial)
+
+library(MASS)
+#BAR PLOT
+# df3 <- df2 %>% 
+#   dplyr::select(Book.Author, ISBN) %>% 
+#   unique() %>% group_by(Book.Author) %>% 
+#   summarise(count=n(), .groups = 'drop') %>% 
+#   arrange(desc(count)) %>% 
+#   head(10) %>% arrange(count)
+# 
+# df3$Book.Author <- str_wrap(df3$Book.Author, width = 10)
+# 
+# p1 <- ggplot(data=df3, aes(x=reorder(Book.Author, count), y=count)) +
+#       geom_bar(stat="identity", width = 0.5) +
+#   xlab("Book Author") +
+#   ylab("Count") +
+#   ggtitle("Number of Books by Author") +
+#   theme(plot.title = element_text(hjust = 0.5))
+
+
+
+df3 <- df2 %>% 
+  dplyr::select(Book.Author, ISBN) %>% 
+  unique() %>% group_by(Book.Author) %>% 
+  summarise(count=n(), .groups = 'drop') %>% 
+  arrange(desc(count)) %>% 
+  head(10)
+
+ df3 <- df3 %>% arrange(count)           
+#colors <- c("#E6E6FA", "#D8BFD8", "#DDA0DD", "#EE82EE", "#DA70D6", "#FF00FF", "#BA55D3", "#9370DB", "#8A2BE2", "#9400D3")
+           # "#F7F7F7", "#EBEBEB", "#DFDFDF"
+            
+
+#colors <- c("#FFB6C1", "#FFC0CB", "#DDA0DD", "#DB7093", 
+            #"#C71585", "#E066FF", "#BA55D3", "#9370DB", "#FF69B4", "#FF1493")
+            
+#colors <- c("#FFB0F5", "#FFC1E3", "#FF9ACD", "#FF6EB4", "#FF83FA",
+#"#FFC0CB", "#FFA07A", "#FF69B4", "#FFB6C1", "#FFC8E6")
+
+colors <- c( "#FFC1E3" , "#FFC8E6", "#FFC0CB", "#FFB6C1", "#FF6EB4" , "#FF69B4", "#FF1493")
+                       
+colors <- c("#FFC0CB", "#FFACC4" ,"#FF99BE", "#FF86B8", "#FF73B2", "#FF60AB", "#FF4DA5" ,"#FF3A9F" ,"#FF2799" ,"#FF1493")
+
+colors <- c("#FFC0CB", "#FFACC4" ,"#FF99BE", "#FF86B8", "#FF73B2", "#FF60AB", "#FF4DA5" , "#FF69B4","#FF3A9F" ,"#FF1493")
+
+colors <- c("#FFFACD", "#FFE6BA" ,"#FFD2A8", "#FFBE95" ,"#FFAA83" ,"#FF9C75" ,"#FF956C" ,"#FF8D62" ,"#FF8659" ,"#FF7F50")
+
+colors <- c( "#FFE6BA" ,"#FFD2A8", "#FFBE95" ,"#FFAA83" ,"#FF9C75" ,"#FF956C" ,"#FF8D62" ,"#FF8659"  ,"#FF6745", "#FF5733")
+
+colors <- c( "#E8BFE8","#E0B3E0", "#D8A7D8", "#D4A2D4", "#D09CD0", "#CC96CC", "#C891C8", "#C48BC4", "#BC80BD", "#A875A8", "#9B6D9B") 
+
+#colors <- c( "#E8BFE8","#E0B3E0", "#DCADDC", "#D8A7D8", "#D4A2D4", "#D09CD0", "#CC96CC", "#C891C8", "#C48BC4", "#C085C0", "#BC80BD", "#A875A8") 
+
+# "#FFE4B5" "#FFD69E" "#FFC887" "#FFBA71" "#FFAC5A" "#FFA246" "#FF9C34" "#FF9723" "#FF9111" "#FF8C00" "#FF5733"
+options(repr.plot.width=1, repr.plot.height=2)
+
+df3$Book.Author <- factor(df3$Book.Author, levels = unique(df3$Book.Author), ordered = TRUE)            
+p1 <- ggplot(df3, aes(area=count,label=Book.Author,fill=Book.Author)) +
+  geom_treemap() +
+  ggtitle("Top 10 Prolific Book Authors") +
+  geom_treemap_text(fontface = "italic", color = "white", place = "center", grow = FALSE, size=10) +
+  scale_fill_manual(values=colors , name = "Authors") +
+   theme(plot.margin = unit(c(1,1,1,1), "cm"), panel.border = element_rect(color = "black", size = 1, fill = NA),
+        plot.title = element_text(size=10, face="bold",hjust = 0.5)) +
+  theme( legend.title =  element_text(family="sans",face="bold",size=8),
+        legend.text =  element_text(family="sans",size=8))
+
+
+p1
+```
+
+Top 10 authors: We can easily see the authors who have made the biggest contribution to the industry and compare the number of books written by each author. One of the key observations from the graph is the commitment and strong passion for writing of the top 10 authors. The large number of books written by each author suggests that they have a deep passion for writing and a strong commitment to their craft. These authors are not only able to write a high number of books, but they are also able to maintain a high level of quality in their work, which is a testament to their talent and dedication and have been able to make a significant impact on the publishing industry.The above analysis also has a broader implication for society.They inspire new generations of writers and readers and help to keep the publishing industry vibrant and alive.
+
+### Q. What is the most used book title?
+```{r , fig.width=5, fig.height=5}
+#install.packages(c("tm", "wordcloud","SnowballC"))
+suppressMessages({
+library(tm)
+library(wordcloud)
+library(SnowballC)
+library(readr)
+library(e1071)
+library(mlbench)
+library("RColorBrewer")
+
+
+
+df3 <- df2[df2$Book.Rating != 0,]
+
+df3$Book.Title <- iconv(df3$Book.Title, "UTF-8", "ASCII", sub="")
+
+corpus = Corpus(VectorSource(df3$Book.Title))
+corpus = tm_map(corpus, PlainTextDocument)
+corpus = tm_map(corpus, tolower)
+corpus = tm_map(corpus, removePunctuation)
+corpus = tm_map(corpus, removeWords,c(stopwords("english"), 'novel', 'book', 'paperback'))
+corpus = tm_map(corpus, stemDocument)
+corpus = tm_map(corpus, stripWhitespace)
+DTM <- TermDocumentMatrix(corpus)
+mat <- as.matrix(DTM)
+
+f <- sort(rowSums(mat),decreasing=TRUE)
+dat <- data.frame(word = names(f),freq=f)
+set.seed(100)
+wordcloud(words = dat$word, freq = dat$freq, min.freq = 3, max.words=250, random.order=FALSE, rot.per=0.30, colors=brewer.pal(8, "Dark2"), main = "Most Common Words in Book Titles: A Word Cloud Visualization")
+
+})
+```
+
+A book title provides a quick and visually appealing way to get a sense of themes and genres of a group of books. The word cloud identifies the most used book titles making it possible to determine the popularity of specific books and to understand what types of book titles are in demand. The top words suggest that there is a significant demand for books that focus on life, love, mystery, and classic literature, as well as guides.The word "life" being one of the top words indicates that there is a strong demand for books that explore various aspects of life, such as personal growth, self-discovery, and the human experience. The word "mystery" suggests that there is a significant interest in books that feature suspense, intrigue, and detective work. These trends are likely due to the universal appeal of this theme, as well as the ongoing interest in stories that touch on the human condition.
+
+##   Section 2: User profile Analysis based on age and location
+### Q. What is the number of users based on age category?
+```{r plot3, fig.width=2, fig.height=2 }
+#summary(df2)
+
+library(ggplot2)
+library(ggrepel)
+
+# Count the number of ratings in the Book.Rating column
+# rating_counts <- as.data.frame(table(df2$Book.Rating))
+# 
+# 
+# hsize <- 2.5
+# 
+# rating_counts$ymax = cumsum(round(rating_counts$Freq,2))
+# rating_counts$ymin = c(0, rating_counts$ymax[1:(nrow(rating_counts)-1)])
+# rating_counts$labelPosition <- (rating_counts$ymax + rating_counts$ymin) / 2
+# rating_counts$label <- paste0(round(rating_counts$Freq,2))
+# 
+# 
+# ggplot(rating_counts, aes(ymax=ymax, ymin=ymin, xmax=4, xmin=3, y = Freq, fill = Var1)) +
+#   geom_rect() +
+#   coord_polar(theta = "y") +
+#   xlim(c(1,4)) +
+#   ggtitle("Number of Ratings") +
+#   scale_fill_brewer(palette = "Set3") +
+#   geom_label( x=3.5, aes(y=labelPosition,label=label), size=3.0, shape = 21, bg = "transparent") +
+#   theme_void()
+```
+```{r plot3-1}
+#summary(df2)
+
+
+# Count the number of users rating ineach age category
+df3 <- df2 %>% dplyr::select(User.ID, Age) %>% unique()
+
+df3$Age_Range <- ifelse(df3$Age >= 18 & df3$Age <= 24, "18-24",
+                        ifelse(df3$Age < 18, "<18", 
+                               ifelse(df3$Age >= 25 & df3$Age <= 34, "25-34",
+                                      ifelse(df3$Age >= 35 & df3$Age <= 44, "35-44",
+                                             ifelse(df3$Age >= 45 & df3$Age <= 54, "45-54",
+                                                    "55+")))))
+Age_Range_counts <- as.data.frame(table(df3$Age_Range))
+
+hsize <- 2.5
+
+Age_Range_counts$ymax = cumsum(round(Age_Range_counts$Freq,2))
+Age_Range_counts$ymin = c(0, Age_Range_counts$ymax[1:(nrow(Age_Range_counts)-1)])
+Age_Range_counts$labelPosition <- (Age_Range_counts$ymax + Age_Range_counts$ymin) / 2
+Age_Range_counts$label <- paste0(round(Age_Range_counts$Freq*100/sum(Age_Range_counts$Freq),2), '%')
+
+
+ggplot(Age_Range_counts, aes(ymax=ymax, ymin=ymin, xmax=4, xmin=3, y = Freq, fill = Var1)) +
+  geom_rect() +
+  coord_polar(theta = "y") +
+  xlim(c(1,4)) +
+  ggtitle("Percentage of Reviewers based on Age category") +
+  scale_fill_brewer(palette = "Set3", name = 'Age') +
+  geom_label( x=3.5, aes(y=labelPosition, label=label), size=2.2, shape=NA, bg = "transparent") +
+  theme_void() +
+  theme(plot.title = element_text(hjust = .5, vjust = 3)) +
+      theme(plot.margin = unit(c(.1,.1,.1,.1), "cm"), panel.border = element_rect(color = "black", size = .5, fill = NA),
+        plot.title = element_text(size=10, face="bold",hjust = 0.5)) +
+  theme(legend.position = "none")
+    
+```
+
+The 25 to 34 age group typically consists of young professionals who have more disposable income and leisure time to devote to reading and rating books. Additionally, many people in this age group are well-educated and may have intellectual pursuits, which could contribute to their increased engagement in book reading and rating.On the other hand, the lower number of users in the age group of less than 18 could be due to factors like they are still in school and have limited free time to devote to reading and rating books. Additionally, many children in this age group are not yet financially independent, so they may not have the means to purchase books and participate in book-related activities.
+
+### Q. What is the number of users based in the top 10 countries?
+```{r , fig.width=6, fig.height=3 }
+
+df3 <- df2 %>% dplyr::select(User.ID, country) %>% unique()
+df3 <- df3 %>% group_by(country) %>% summarise(count=n(), .groups = 'drop') %>% arrange(desc(count)) %>% head(10)
+df3$country <- factor(df3$country, levels = unique(df3$country)[order(df3$count, decreasing = FALSE)])
+ggplot(data = df3, aes(x = country, y = count)) +
+  geom_bar(stat = "identity", fill = "#9B6D9B", width=0.5) +
+  geom_text(aes(label = count, y= count+150), size = 2.5) +
+  xlab("Country") +
+  ylab("Number of Users") +
+  ggtitle("Top 10 Countries User Distribution") + coord_flip()+
+  theme(plot.margin = unit(c(.5,.5,.5,.5), "cm"), panel.border = element_rect(color = "black", size = 1, fill = NA),
+        plot.title = element_text(size=10, face="bold",hjust = 0.5)) +
+     theme(axis.text.x = element_text(size = 8),axis.text.y = element_text(size = 8) , 
+          axis.title.x = element_text(family="sans", size=9) ,
+          axis.title.y = element_text(family="sans", size=9) ,
+        legend.title =  element_text(family="sans",face="bold",size=8),
+        legend.text =  element_text(family="sans",size=8),
+        plot.title = element_text(size=10, face="bold"))
+
+
+```
+
+The high number of users in the United States, Canada, and Germany could be attributed to a variety of factors. These countries are home to large populations with a high level of literacy and education, which could contribute to their increased engagement in book reading and related activities. Additionally, these countries have strong economies and well-developed publishing industries, which could provide more access to books and resources for readers.On the other hand, the lower number of users in New Zealand and Italy could be due to a variety of reasons such as smaller populations. 
+
+### Q. What is the age distribution of users from top 5 countries actively participating in ratings?
+```{r plot 4, echo=FALSE, fig.width=7, fig.height=4 }
+
+#summary(df2)
+
+df3 <- df2 %>% dplyr::select(User.ID, Age, country) %>% unique()
+
+df3$Age_Range <- ifelse(df3$Age >= 18 & df3$Age <= 24, "18-24",
+                        ifelse(df3$Age < 18, "<18", 
+                               ifelse(df3$Age >= 25 & df3$Age <= 34, "25-34",
+                                      ifelse(df3$Age >= 35 & df3$Age <= 44, "35-44",
+                                             ifelse(df3$Age >= 45 & df3$Age <= 54, "45-54",
+                                                    "55+")))))
+df3 <- df3[df3$country!='',]
+df3 <- df3 %>% group_by(country,Age_Range) %>% summarise(count=n(), .groups = 'drop') 
+df3 <- df3[df3$country %in% c(" usa", " canada", " germany", ' united kingdom', ' australia'), ]
+
+#df3 <- df3 %>% group_by(country) %>% summarise(total=sum(count), .groups = 'drop') %>% arrange(desc(total))
+colors <- c("#8DD3C7" ,"#FFFFB3", "#BEBADA", "#FB8072" ,"#80B1D3" ,"#FDB462") 
+
+ ggplot(data=df3, aes(x=country, y=count, fill=Age_Range)) +
+      geom_bar(stat="identity") +
+      coord_cartesian(ylim = c(0, 5000)) +
+  scale_fill_manual(values=colors, name = "Age") +
+  theme(axis.text.x = element_text(size = 8),axis.text.y = element_text(size = 8) , 
+          axis.title.x = element_text(family="sans", size=9) ,
+          axis.title.y = element_text(family="sans", size=9) ,
+        legend.title =  element_text(family="sans",face="bold",size=8),
+        legend.text =  element_text(family="sans",size=8),
+        plot.title = element_text(size=10, face="bold")) +
+  theme(plot.margin = unit(c(.5,.5,.5,.5), "cm"), panel.border = element_rect(color = "black", size = 1, fill = NA),
+        plot.title = element_text(size=10, face="bold",hjust = 0.5)) +
+  theme(legend.title =  element_text(family="sans",face="bold",size=8),
+        legend.text =  element_text(family="sans",size=8)) +
+  labs(x = "Country", y = "Number of Users") +
+            ggtitle("Book Ratings by Age Category")
+  #+ geom_text(aes(label=count),  color="black", size=1.5, position = position_stack(vjust = 0.5))
+
+#"#8DD3C7" "#FFFFB3" "#BEBADA" "#FB8072" "#80B1D3" "#FDB462" "#B3DE69" "#FCCDE5" "#D9D9D9"
+# "#F5E0F5"
+# "#F0C9F0"
+# "#E0B3E0"
+# "#DCADDC"
+# "#D8A7D8"
+# "#D4A2D4"
+# "#D09CD0"
+# "#CC96CC"
+# "#C891C8"
+# "#C48BC4"
+# "#C085C0"
+# "#BC80BD"
+# "#B77CB7"
+# "#B376B3"
+# "#AF71AF"
+# "#AB6BAB"
+# "#A765A7"
+# "#A35FA3"
+# "#9F599F"
+# "#9B6D9B"
+
+
+```
+The age distribution of users varies among the different countries represented in the graph. This difference in age distribution could be due to several factors, such as cultural differences, different levels of access to technology, or even different stages of market penetration for the product.It's also worth noting that the age distribution of users in each country is generally skewed towards the age ranges between 25-34. This could be due to a variety of reasons, such as a greater affinity for technology and digital products among younger generations, or a greater willingness to engage in online activities such as rating and reviewing products.
+Additionally, the consistency in the age distribution of users across the top 5 countries suggests that the preferences and habits of book readers are relatively similar across different countries.
+
+##   Section 3: User reading habits based on ratings Analysis 
+### Q. What are the ratings of top 5 authors?
+```{r plot 5-2, echo=FALSE, fig.width=7, fig.height=3 }
+
+library(alluvial)
+
+library(MASS)
+
+
+
+df3 <- df2 %>% dplyr::select(Book.Author, Book.Rating)  
+df3 <- df3[df3$Book.Author %in% c("Stephen King", "Nora Roberts", "Ann M. Martin", 'William Shakespeare', 'Agatha Christie'), ] 
+
+author_order <- c("Stephen King", "Nora Roberts", "Ann M. Martin", "William Shakespeare", "Agatha Christie")
+
+# Get the indices of authors in the desired order
+author_index <- match(df3$Book.Author, author_order)
+
+# Sort the data frame based on the indices
+df3 <- df3[order(author_index), ]
+
+#df3$Book.Author <- factor(df3$Book.Author, levels = unique(df3$Book.Author), ordered = TRUE) 
+colors <- c("#8DD3C7", "#FFFFB3"  ,"#BEBADA", "#FB8072", "#80B1D3")
+#"#8DD3C7" "#FFFFB3" "#BEBADA" "#FB8072" "#80B1D3" "#FDB462" "#B3DE69" "#FCCDE5" "#D9D9D9"
+#"#8DD3C7" "#FFFFB3" "#BEBADA" "#FB8072" "#80B1D3" "#FDB462" "#B3DE69" "#FCCDE5" "#D9D9D9" "#BC80BD"
+
+
+df3$Book.Author <- factor(df3$Book.Author, levels = author_order, ordered = TRUE) 
+p2 <- ggplot(df3, aes(x = Book.Rating, fill = Book.Author)) +
+  geom_density(alpha = .85) + 
+  scale_fill_manual(values = colors, name = "Authors") +
+  labs(x = "Book Ratings", y = "Density") +
+    theme(axis.text.x = element_text(size = 8),axis.text.y = element_text(size = 8) , 
+          axis.title.x = element_text(family="sans", size=9) ,
+          axis.title.y = element_text(family="sans", size=9) ,
+        legend.title =  element_text(family="sans",face="bold",size=8),
+        legend.text =  element_text(family="sans",size=8),
+        plot.title = element_text(size=10, face="bold")) +
+  theme(plot.margin = unit(c(.5,.5,.5,.5), "cm"), panel.border = element_rect(color = "black", size = 1, fill = NA),
+        plot.title = element_text(size=10, face="bold",hjust = 0.5)) +
+  ggtitle("Distribution of Ratings for top 5 Book Authors")
+
+p2
+#grid.arrange(p1, p2, nrow=2)
+
+#colors <- brewer.pal(n = 12, name = "Set3")
+#colors <- colorRampPalette(c("#E0B3E0", "#BC80BD"))(10)
+
+
+
+```
+The plot displays the distribution of ratings for the top 5 authors, allowing us to see patterns and trends in the data, as well as get a sense of the overall spread of ratings for each author. William Shakespeare  and Stephen King have a higher concentration of high ratings whereas Ann M. Martin and Agatha Christie have a higher proportion of  low ratings.
+
+### Q. How is the user behavior regarding ratings throughout the years?
+```{r plot 5-1, echo=FALSE, fig.width=8, fig.height=2.5 }
+df3 <- df2 %>% dplyr::select(User.ID, Age, Year.Of.Publication) %>% unique()
+
+df3$Age_Range <- ifelse(df3$Age >= 18 & df3$Age <= 24, "18-24",
+                        ifelse(df3$Age < 18, "<18", 
+                               ifelse(df3$Age >= 25 & df3$Age <= 34, "25-34",
+                                      ifelse(df3$Age >= 35 & df3$Age <= 44, "35-44",
+                                             ifelse(df3$Age >= 45 & df3$Age <= 54, "45-54",
+                                                    "55+")))))
+
+
+df3 <- df3 %>% group_by(Year.Of.Publication, Age_Range) %>% summarise(count=n(), .groups = 'drop')
+
+ggplot(df3, aes(x=(Year.Of.Publication), y=count, group=Age_Range, color=Age_Range)) +
+  geom_line(size=1) +
+            ggtitle("Book Ratings by Age Category") + 
+  labs(x = "Year", y = "Number of Users") +
+  scale_color_manual(values = c("#8DD3C7" ,"#FFFFB3", "#BEBADA", "#FB8072" ,"#80B1D3" ,"#FDB462"), name = "Age") +
+   theme(axis.text.x = element_text(size = 8),axis.text.y = element_text(size = 8) , 
+          axis.title.x = element_text(family="sans", size=9) ,
+          axis.title.y = element_text(family="sans", size=9) ,
+        legend.title =  element_text(family="sans",face="bold",size=8),
+        legend.text =  element_text(family="sans",size=8),
+        plot.title = element_text(size=10, face="bold")) +
+  theme(plot.margin = unit(c(.5,.5,.5,.5), "cm"), panel.border = element_rect(color = "black", size = 1, fill = NA),
+        plot.title = element_text(size=10, face="bold",hjust = 0.5)) +
+  theme(legend.title =  element_text(family="sans",face="bold",size=8),
+        legend.text =  element_text(family="sans",size=8))
+
+# [1] "#8DD3C7" "#FFFFB3" "#BEBADA" "#FB8072" "#80B1D3" "#FDB462" "#B3DE69" "#FCCDE5" "#D9D9D9" "#BC80BD" "#CCEBC5"
+#[12] "#FFED6F"
+
+```
+Book Ratings by age category: We can see an upward trend in the number of user ratings over the years, this could indicate that people are becoming more interested in reading and rating books, or that there has been an increase in access to technology and resources for rating books. Additionally, the graph also shows that the age group less than 18 years old is the lowest in terms of user ratings. This suggests that this age group is less interested in reading and rating books, or that they may have fewer resources (such as access to technology or the ability to purchase books) to engage with the publishing industry
+This analysis is valuable for publishers and authors, who can use it to understand the market and to tailor their work to meet the demands of this age group. about how to reach this age group and to encourage them to become more active in reading and rating books.
+```{r}
+
+ ggplot(df2 ,aes(x=as.factor(Book.Rating), y=Age, fill=factor(Book.Rating))) + 
+  geom_boxplot(notch = TRUE) + scale_fill_manual(values=c("#8DD3C7" ,"#FFFFB3", "#BEBADA", "#FB8072" ,"#80B1D3" ,"#FDB462","#B3DE69", "#FCCDE5" ,"#D9D9D9", "#BC80BD", "#9E9AC8")) +
+  ggtitle("Rating distribution across user age groups") +
+  theme(axis.text.x = element_text(size = 8),axis.text.y = element_text(size = 8) , 
+          axis.title.x = element_text(family="sans", size=9) ,
+          axis.title.y = element_text(family="sans", size=9) ,
+        plot.title = element_text(size=10, face="bold"),
+          legend.position="none") +
+  theme(plot.margin = unit(c(.5,.5,.5,.5), "cm"), panel.border = element_rect(color = "black", size = .5, fill = NA),
+        plot.title = element_text(size=10, face="bold",hjust = 0.5)) +
+  labs(x = "Ratings", y = "Age")
+
+#"#8DD3C7" "#FFFFB3" "#BEBADA" "#FB8072" "#80B1D3" "#FDB462" "#B3DE69" "#FCCDE5" "#D9D9D9" "#BC80BD"
+
+```
+Rating distribution across age groups: The analysis of the relationship between user age and book ratings provides important insights into the reading habits of different age groups. This trend could be due to several factors. For example, younger users may be more optimistic and have a general tendency to rate things positively, while older users may have higher expectations and be more critical in their assessments. Another possible explanation is that younger users are more open to exploring new genres and authors, and as a result, are more likely to enjoy the books they read. In contrast, older users may have more established reading preferences and may be less likely to try new things, which could result in them being more critical of the books they read. It's also possible that the difference in ratings is due to a difference in reading experience.
+
+### Q. How do people from different age groups rate the top 5 authors? 
+```{r plot 5-3, echo=FALSE, fig.width=6, fig.height=3 }
+df3 <- df2 %>% dplyr::select(Age, Book.Author, Book.Rating)
+#df3 <- df3 %>% filter((Book.Rating!=0))
+df3$Age_Range <- ifelse(df3$Age >= 18 & df3$Age <= 24, "18-24",
+                        ifelse(df3$Age < 18, "<18", 
+                               ifelse(df3$Age >= 25 & df3$Age <= 34, "25-34",
+                                      ifelse(df3$Age >= 35 & df3$Age <= 44, "35-44",
+                                             ifelse(df3$Age >= 45 & df3$Age <= 54, "45-54",
+                                                    "55+")))))
+
+df3 <- df3[df3$Book.Author %in% c("Stephen King", "Nora Roberts", "Ann M. Martin", 'William Shakespeare', 'Agatha Christie'), ]
+
+df3 <- df3 %>% dplyr::select(Book.Author,Book.Rating,Age_Range) %>% group_by(Book.Author,Age_Range) %>% 
+  summarise(Average_rating = mean(Book.Rating), .groups = 'drop')
+
+df3$Average_rating.cat <- as.factor(cut(df3$Average_rating, breaks = c(-1, 3, 7, 10), labels = c("Low", "Medium", "High")))
+
+colors <- c("#E8BFE8", "#9B6D9B",  "#CC96CC" )
+# ,  "#CC96CC"
+
+ggplot(data = df3, aes(axis1 = Book.Author, axis2 = Age_Range)) +
+  scale_x_discrete(limits = c("Author", "Age Category"),expand = c(0.05,0.05)) + 
+  geom_alluvium(aes(fill = Average_rating.cat)) + 
+  geom_stratum() + geom_text(stat ="stratum",aes(label = after_stat(stratum)), size = 2.5) + 
+  theme(axis.text.x = element_text(size = 8),axis.text.y = element_blank() , 
+        axis.title.y = element_text(family="sans",face="bold", size=10) , 
+        legend.title =  element_text(family="sans",face="bold",size=8),
+        legend.text =  element_text(family="sans",size=8),
+        plot.title = element_text(size=10, face="bold")) + 
+  theme(plot.margin = unit(c(.1,.5,.5,.5), "cm"), panel.border = element_rect(color = "black", size = 1, fill = NA)) +
+  scale_fill_manual(values = colors, name = "Average Rating") +
+  ggtitle("Alluvial Plot for Average Ratings of Books by Authors Across Different Age Groups")
+
+```
+
+The chart shows the flow of ratings for each author from one age group to another. The top 5 authors were Agatha Christie, Ann M. Martin, Nora Roberts, Stephen King and William Shakespeare. A higher proportion of older people rated William Shakespeare highly, while younger people rated Ann M. Martin  more highly. The overall all-rounder with high average ratings from most of the age categories is Stephen King.
+
+### Q. From the top 5 books, what are the ratings from each category?
+
+```{r, fig.width=6, fig.height=3 }
+
+# Count the number of users rating ineach age category
+df3 <- df2 %>% dplyr::select(User.ID, Book.Rating, Book.Title) %>% unique()
+
+df3 <- df3[df3$Book.Title!='',]
+df3 <- df3[df3$Book.Title %in% c("Wild Animus","The Lovely Bones: A Novel","The Da Vinci Code","Angels &amp; Demons", "Divine Secrets of the Ya-Ya Sisterhood: A Novel"), ]
+#df3 <- df3 %>% group_by(Book.Title,Book.Rating) %>% summarise(count=n(), .groups = 'drop') 
+
+
+# ggplot(data=df3, aes(x=country, y=count, fill=Book.Rating)) +
+#       geom_bar(stat="identity") +
+#       scale_fill_brewer(palette = "Set3") +
+#       coord_cartesian(ylim = c(0, 5000)) 
+
+df3$Book.Title <- str_wrap(df3$Book.Title, width = 15)
+
+df3$Book.Rating.cat <- cut(df3$Book.Rating, breaks = c(0, 3, 7, 10), labels = c("Low", "Medium", "High"))
+df3$Book.Rating.cat <- as.factor(df3$Book.Rating.cat)
+df3 <- df3 %>% drop_na()
+
+df3 <- df3 %>% 
+  group_by(Book.Title) %>% 
+  count(Book.Rating.cat) %>% 
+  mutate(percent = n / sum(n))
+
+colors <- c( '#F5D0F5', "#CC96CC", "#9B6D9B") 
+
+
+
+#df3 <- df3 %>% group_by(Book.Title,Book.Rating.cat) %>% summarise(total = (count), .groups = 'drop' )
+
+
+
+
+suppressMessages({
+  
+colors <- c( '#F5D0F5', "#CC96CC", "#9B6D9B") 
+
+ggplot(data = df3, aes(x = Book.Title, y = round(percent,2), fill = Book.Rating.cat)) +
+  geom_bar(stat = "identity", position = "fill") +
+  geom_text(aes(label = scales::percent(round(percent, 4)), y = percent), position = position_stack(vjust = 0.5), size = 1.8) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = "Book Rating", y = "Percentage of Users", fill = "Book Rating") +
+  ggtitle("Percentage of Users by Book Rating") +
+  theme(plot.margin = unit(c(.1,.01,.1,.1), "cm"), panel.border = element_rect(color = "black", size = .5, fill = NA),
+        plot.title = element_text(size=10, face="bold",hjust = 0.5)) +
+       theme(axis.text.x = element_text(size = 8),axis.text.y = element_text(size = 8) , 
+          axis.title.x = element_text(family="sans", size=9) ,
+          axis.title.y = element_text(family="sans", size=9) ,
+        legend.title =  element_text(family="sans",face="bold",size=8),
+        legend.text =  element_text(family="sans",size=8),
+        plot.title = element_text(size=10, face="bold")) +
+   scale_fill_manual(values=colors, name = "Rating") +
+  labs(x = "Book Titles", y = "Percentage of Users") +
+            ggtitle("Top 5 Most-Rated Books: A Distribution of Ratings Breakdown")
+
+})
+
+
+```
+
+This information can provide valuable insights into the popularity of a book and its reception among the audience. Starting with Angels and Demons, Divine Secrets, the lovely bones and The Da Vinci Code the stacked bar graph shows that a high percentage of users rated it as high. This suggests that these books were not only popular but also well-received among the audience and was considered to be of high quality. The proportion of users who rated it as low is comparatively low.
+However, the graph tells a different story for, Wild Animus has the lowest proportion of users rating it as high. Many users rated the book low, indicating poor reception and low quality.
+
+### Q. From the top 5 countries, what are the ratings from each category?
+```{r plot 4-1, echo=FALSE}
+
+# Count the number of users rating ineach age category
+df3 <- df2 %>% dplyr::select(User.ID, Book.Rating, country) %>% unique()
+
+df3 <- df3[df3$country!='',]
+df3 <- df3[df3$country %in% c(" usa", " canada", " germany", ' united kingdom', ' australia'), ]
+df3 <- df3 %>% group_by(country,Book.Rating) %>% summarise(count=n(), .groups = 'drop') 
+
+
+# ggplot(data=df3, aes(x=country, y=count, fill=Book.Rating)) +
+#       geom_bar(stat="identity") +
+#       scale_fill_brewer(palette = "Set3") +
+#       coord_cartesian(ylim = c(0, 5000)) 
+
+
+df3$Book.Rating.cat <- cut(df3$Book.Rating, breaks = c(0, 3, 7, 10), labels = c("Low", "Medium", "High"))
+df3$Book.Rating.cat <- as.factor(df3$Book.Rating.cat)
+df3 <- df3 %>% drop_na()
+
+df3 <- df3 %>% group_by(country,Book.Rating.cat) %>% summarise(total = sum(count), .groups = 'drop' )
+
+colors <- c( '#F5D0F5', "#CC96CC", "#9B6D9B") 
+
+suppressMessages({
+ ggplot(data=df3, aes(x=country, y=total, fill=Book.Rating.cat)) +
+      geom_bar(stat="identity", position="dodge") +
+    geom_text(aes(label = total, y = total), position = position_dodge(0.9), hjust = -0.1, vjust=0.5,size=1.8) +
+  scale_fill_manual(values=colors, name = "Rating") +
+      coord_cartesian(ylim = c(0, 9000)) +
+   theme(axis.text.x = element_text(size = 8),axis.text.y = element_text(size = 8) , 
+          axis.title.x = element_text(family="sans", size=9) ,
+          axis.title.y = element_text(family="sans", size=9) ,
+        legend.title =  element_text(family="sans",face="bold",size=8),
+        legend.text =  element_text(family="sans",size=8),
+        plot.title = element_text(size=10, face="bold")) +
+  theme(plot.margin = unit(c(.1,.01,.1,.1), "cm"), panel.border = element_rect(color = "black", size = .5, fill = NA),
+        plot.title = element_text(size=10, face="bold",hjust = 0.5)) +
+  theme(legend.title =  element_text(family="sans",face="bold",size=8),
+        legend.text =  element_text(family="sans",size=8)) +
+  labs(x = "Country", y = "Number of Users") +
+            ggtitle("Top 5 Countries and their Book Rating Distribution")+ coord_flip()
+})
+
+
+
+```
+One of the key observations from the grouped bar chart is the relative proportion of low, medium, and high ratings in each country. USA has a high proportion of high ratings compared to other countries due to factors such as availability of high-quality books, strong publishing industry, or cultural factors. We could see that low proportion of low ratings in top 5 countries suggests well-developed publishing industries catering to diverse reader preferences due to large and diverse market opportunities.
+
+###   Conclusion
+The comprehensive analysis of book details, user demographics, and user ratings offered a profound understanding of the reading preferences and behaviors of users. Our findings shed light on the intricacies of reading habits, revealing that the most sought-after books were written by renowned authors,suggesting that the author's reputation plays a significant role in determining book popularity. These insights have significant implications for the publishing industry, library management, and readers alike. 
+
+Additionally, the study revealed that most users were in the age range of 25-34 and were in urban areas or in developed nations, suggesting that demographic factors, such as age and location, also influence book popularity. We could also observe how readers in different countries give ratings. The results showed that user ratings were positively correlated with the author and publisher of the book, as well as the user's age and location, further emphasizing the impact of these factors on book popularity these factors can be used to predict book popularity and help publishers make informed decisions about which books to promote and where to target their marketing efforts.
+
+Future studies could build upon these findings by exploring the relationships between these factors and book popularity in more detail. For example, further research could examine the impact of marketing and advertising on book popularity or explore the relationship between book genre and reader preferences. Additionally, future studies could examine the impact of cultural differences and personal preferences on book popularity, by comparing the reading habits of users across different countries or demographic groups.
+
+####   Reference
+
+- https://www.kaggle.com/datasets/saurabhbagchi/books-dataset?resource=download
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r plot2, echo=FALSE}
+
+# ddf2 <- df2 %>% group_by(Year.Of.Publication) %>% summarise(Average_rating= mean(Book.Rating),
+#             .groups = 'drop')
+#   
+# ggplot(ddf2, aes(Year.Of.Publication, Average_rating)) +
+#   geom_point() + geom_smooth(method=lm, se=T) + 
+#   labs(x = "Year of Publication", y = "Average_rating", title = "Relationship between Publication Year and Average Rating")
+# 
+# 
+# 
+# #ddf2 <- df2 %>% group_by(Book.Author) %>% summarise(Average_rating= mean(Book.Rating), .groups = 'drop')
+#   
+# #ggplot(ddf2, aes(Book.Author, Average_rating)) + geom_point() + labs(x = "Year of Publication", y = "Average_rating", title = "Relationship between Publication Year and Average Rating")
+# 
+# ddf2 <- df2 %>% group_by(Age) %>% summarise(Average_rating= mean(Book.Rating),
+#             .groups = 'drop')
+#   
+# ggplot(ddf2, aes(Age, Average_rating)) +
+#   geom_point() + geom_smooth(method=lm, se=T) + 
+#   labs(x = "Age", y = "Average_rating", title = "Relationship between Publication Year and Average Rating")
+
+
+
+```
+
+
+
+
+
+
+
+```{r}
+
+# df3 <- df2 %>% dplyr::select(User.ID, country) %>% unique()
+# df3 <- df3 %>% group_by(country) %>% summarise(count=n(), .groups = 'drop') %>% arrange(desc(count)) %>% head(10)
+# df3$country <- factor(df3$country, levels = unique(df3$country)[order(df3$count, decreasing = FALSE)])
+# ggplot(data = df3, aes(x = country, y = count)) +
+#   geom_bar(stat = "identity", fill = "#9B6D9B") +
+#   geom_text(aes(label = count, y= count+150), size = 2.5) +
+#   xlab("Country") +
+#   ylab("Number of Users") +
+#   ggtitle("Top 10 Countries User Distribution") + coord_flip()+
+#   theme(plot.margin = unit(c(1,1,1,1), "cm"), panel.border = element_rect(color = "black", size = 1, fill = NA),
+#         plot.title = element_text(size=10, face="bold",hjust = 0.5)) +
+#      theme(axis.text.x = element_text(size = 8),axis.text.y = element_text(size = 8) , 
+#           axis.title.x = element_text(family="sans", size=9) ,
+#           axis.title.y = element_text(family="sans", size=9) ,
+#         legend.title =  element_text(family="sans",face="bold",size=8),
+#         legend.text =  element_text(family="sans",size=8),
+#         plot.title = element_text(size=10, face="bold"))
+```
+
+
+
+
+
+
+```{r}
+# df3 <- df2 %>% dplyr::select(User.ID, Book.Title) %>% unique()
+# df3 <- df3 %>% group_by(Book.Title) %>% summarise(count=n(), .groups = 'drop') %>% arrange(desc(count)) %>% head(10)
+# 
+# df3$Book.Title <- factor(df3$Book.Title, levels = unique(df3$Book.Title)[order(df3$count, decreasing = FALSE)])
+# 
+# ggplot(data = df3, aes(x = Book.Title, y = count)) +
+#   geom_bar(stat = "identity", fill = "#9B6D9B") +
+#    geom_text(aes(label = count, y= count+20), size = 2.5) +
+#   xlab("Country") +
+#   ylab("Number of Users") +
+#   ggtitle("Top 10 popular books in the dataset") + coord_flip()+
+#   theme(plot.margin = unit(c(1,1,1,1), "cm"), panel.border = element_rect(color = "black", size = 1, fill = NA),
+#         plot.title = element_text(size=10, face="bold",hjust = 0.5)) +
+#      theme(axis.text.x = element_text(size = 8),axis.text.y = element_text(size = 8) , 
+#           axis.title.x = element_text(family="sans", size=9) ,
+#           axis.title.y = element_text(family="sans", size=9) ,
+#         legend.title =  element_text(family="sans",face="bold",size=8),
+#         legend.text =  element_text(family="sans",size=8),
+#         plot.title = element_text(size=10, face="bold"))
+
+```
+
+
+
+```{r}
+
+# # Count the number of users rating ineach age category
+# df3 <- df2 %>% dplyr::select(User.ID, Book.Rating, Book.Title) %>% unique()
+# 
+# df3 <- df3[df3$Book.Title!='',]
+# df3 <- df3[df3$Book.Title %in% c("Wild Animus","The Lovely Bones: A Novel","The Da Vinci Code","Angels &amp; Demons", "Divine Secrets of the Ya-Ya Sisterhood: A Novel"), ]
+# #df3 <- df3 %>% group_by(Book.Title,Book.Rating) %>% summarise(count=n(), .groups = 'drop') 
+# 
+# 
+# # ggplot(data=df3, aes(x=country, y=count, fill=Book.Rating)) +
+# #       geom_bar(stat="identity") +
+# #       scale_fill_brewer(palette = "Set3") +
+# #       coord_cartesian(ylim = c(0, 5000)) 
+# 
+# df3$Book.Title <- str_wrap(df3$Book.Title, width = 20)
+# 
+# df3$Book.Rating.cat <- cut(df3$Book.Rating, breaks = c(0, 3, 7, 10), labels = c("Low", "Medium", "High"))
+# df3$Book.Rating.cat <- as.factor(df3$Book.Rating.cat)
+# df3 <- df3 %>% drop_na()
+# 
+# df3 <- df3 %>% 
+#   group_by(Book.Title) %>% 
+#   count(Book.Rating.cat) %>% 
+#   mutate(percent = n / sum(n))
+# 
+# colors <- c( '#F5D0F5', "#CC96CC", "#9B6D9B") 
+# 
+# 
+# 
+# #df3 <- df3 %>% group_by(Book.Title,Book.Rating.cat) %>% summarise(total = (count), .groups = 'drop' )
+# 
+# 
+# 
+# 
+# suppressMessages({
+#   
+# colors <- c( '#F5D0F5', "#CC96CC", "#9B6D9B") 
+# 
+# ggplot(data = df3, aes(x = Book.Title, y = round(percent,2), fill = Book.Rating.cat)) +
+#   geom_bar(stat = "identity", position = "fill") +
+#   geom_text(aes(label = scales::percent(round(percent, 4)), y = percent), position = position_stack(vjust = 0.5), size = 2.5) +
+#   scale_y_continuous(labels = scales::percent) +
+#   labs(x = "Book Rating", y = "Percentage of Users", fill = "Book Rating") +
+#   ggtitle("Percentage of Users by Book Rating") +
+#   theme(plot.margin = unit(c(.5,.01,.1,.1), "cm"), panel.border = element_rect(color = "black", size = .5, fill = NA),
+#         plot.title = element_text(size=10, face="bold",hjust = 0.5)) +
+#        theme(axis.text.x = element_text(size = 8),axis.text.y = element_text(size = 8) , 
+#           axis.title.x = element_text(family="sans", size=9) ,
+#           axis.title.y = element_text(family="sans", size=9) ,
+#         legend.title =  element_text(family="sans",face="bold",size=8),
+#         legend.text =  element_text(family="sans",size=8),
+#         plot.title = element_text(size=10, face="bold")) +
+#    scale_fill_manual(values=colors, name = "Rating") +
+#   labs(x = "Book Titles", y = "Number of Users") +
+#             ggtitle("Top 5 Most-Rated Books: A Distribution of Ratings Breakdown")
+# 
+# })
+
+
+```
+
+
+
+```{r}
+# df3 <- df2 %>% dplyr::select(User.ID, Book.Rating, Book.Title) %>% unique() 
+# #df3 <- df3 %>% group_by(Book.Title) %>% summarise(count=n(), .groups = 'drop') %>% arrange(desc(count)) %>% head(10)
+# df3 <- df3[df3$Book.Title %in% c("Wild Animus","The Lovely Bones: A Novel","The Da Vinci Code","Angels &amp; Demons", "Divine Secrets of the Ya-Ya Sisterhood: A Novel"), ]
+# 
+# df3$Book.Title <- str_wrap(df3$Book.Title, width = 10)
+# 
+# ggplot(df3, aes(x=factor(Book.Title), y=Book.Rating, fill=factor(Book.Title))) + 
+#   geom_boxplot() +scale_fill_manual(values=c("#8DD3C7" , "#BEBADA", "#FB8072" ,"#80B1D3" ,"#FDB462"), name = "Book Titles") +
+#      theme(axis.text.x = element_text(size = 8),axis.text.y = element_text(size = 8) , 
+#           axis.title.x = element_text(family="sans", size=9) ,
+#           axis.title.y = element_text(family="sans", size=9) ,
+#         legend.title =  element_text(family="sans",face="bold",size=8),
+#         legend.text =  element_text(family="sans",size=8),
+#         plot.title = element_text(size=10, face="bold")) +
+#   theme(plot.margin = unit(c(.5,.01,.1,.1), "cm"), panel.border = element_rect(color = "black", size = .5, fill = NA),
+#         plot.title = element_text(size=10, face="bold",hjust = 0.5)) +
+#   theme(legend.title =  element_text(family="sans",face="bold",size=8),
+#         legend.text =  element_text(family="sans",size=8)) +
+#   labs(x = "Book Titles", y = "Ratings") +
+#             ggtitle("Top 5 Most-Rated Books: A Distribution of Ratings Breakdown")
+```
+
+
+```{r}
+
+# df3 <- df2 %>% group_by(country, state) %>% summarise(count = n(), .groups='drop') %>% arrange(desc(country)) %>% head(10)
+# df3 <- df3[df3$country!='',]
+# 
+# ggplot(df3, aes(area=count,label=state,fill=country, subgroup= country)) +
+#            geom_treemap()+
+#            ggtitle("Top 10 countries ") +
+#            geom_treemap_text(fontface = "italic", colour = "white", place = "center", grow = FALSE, size=50)
+```
+
+
+
+```{r}
+
+# df3 <- df2 %>% 
+#   dplyr::select(Book.Author, ISBN) %>% 
+#   unique() %>% group_by(Book.Author) %>% 
+#   summarise(count=n(), .groups = 'drop') %>% 
+#   arrange(desc(count)) %>% 
+#   head(10) %>% arrange(count)
+# 
+# df3 <- df2 %>% dplyr::select(Book.Author, ISBN) %>% unique()
+# 
+# library(gplots)
+# heatmap.2(as.matrix(table(df3$Book.Author)), col = heat.colors(256))
+```
+
